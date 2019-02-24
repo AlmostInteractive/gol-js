@@ -1,15 +1,23 @@
-/*global window*/
-/*global document*/
-/*global console*/
+/**
+ * Author: Steven Joseph
+ * Repo: https://github.com/AlmostInteractive/gol-js
+ * Contact: https://github.com/AlmostInteractive/gol-js/issues
+ * Reason: Someone asked me nicely.
+ */
 
-var Game = Game || {};
-Game.gol = (function () {
+(function () {
     'use strict';
 
     document.addEventListener('DOMContentLoaded', init, false);
 
 
     // ----- Global constants and vars --------------------
+    const WIDTH = 25;
+    const HEIGHT = 25;
+    const UPDATE_TIME = 100;
+    const BUFFERS = 2; // must be at least 2
+
+    // cell states
     const DEAD = 0;
     const ALIVE = 1;
 
@@ -20,11 +28,6 @@ Game.gol = (function () {
         ALIVE: '#58f087'
     };
 
-    const WIDTH = 25;
-    const HEIGHT = 25;
-    const UPDATE_TIME = 100;
-    const BUFFERS = 2;
-
     const _canvas = {
         element: null,
         context: null,
@@ -33,14 +36,12 @@ Game.gol = (function () {
         cellSize: null
     };
     const _worlds = [];
-    let _step = 0;
     let _curDrawWorld = 0;
     let _isRunning = false;
-    let _isProcessing = false;
     let _interval;
 
 
-    // ----- Public Functions --------------------
+    // ----- UI Functions --------------------
 
     function start() {
         if (_isRunning)
@@ -61,17 +62,42 @@ Game.gol = (function () {
     }
 
     function step() {
-        if (_isProcessing)
-            return;
-
+        // draw the next buffered world
         draw();
+        // update the next world during the interval downtime
         update();
+    }
+
+    function populateRandom() {
+        emptyWorld(_worlds[_curDrawWorld]);
+        for (let i = 0; i < WIDTH * HEIGHT * 0.3; i++) {
+            _worlds[_curDrawWorld][Math.floor(Math.random() * HEIGHT)][Math.floor(Math.random() * WIDTH)] = ALIVE;
+        }
+
+        step();
+    }
+
+    function populateGliders() {
+        emptyWorld(_worlds[_curDrawWorld]);
+
+        const numGliders = Math.min(3, Math.floor(WIDTH / 5));
+        const bucketSize = Math.floor(WIDTH / numGliders);
+
+        for(let i = 0; i < numGliders; i++) {
+            const x = Math.floor(Math.random() * (bucketSize - 6)) + i * bucketSize;
+            const y = Math.floor(Math.random() * (WIDTH / 2));
+
+            createGlider(x, y);
+        }
+
+        step();
     }
 
 
     // ----- Private Functions --------------------
 
     function init() {
+        // setup canvas members
         _canvas.element = document.getElementById('canvas');
         _canvas.context = _canvas.element.getContext('2d');
         _canvas.width = _canvas.element.width;
@@ -163,17 +189,12 @@ Game.gol = (function () {
     }
 
     function update() {
-        if (_isProcessing)
-            return;
-
-        _isProcessing = true;
-
         const curWorld = _worlds[_curDrawWorld];
         const nextWorld = _worlds[(_curDrawWorld + 1) % BUFFERS];
 
         for (let y = 0; y < HEIGHT; y++) {
             for (let x = 0; x < WIDTH; x++) {
-                let n = getNeighbourCount(y, x);
+                const n = getNeighbourCount(y, x);
                 if (curWorld[y][x] === ALIVE) {
                     nextWorld[y][x] = (n === 2 || n === 3) ? ALIVE : DEAD;
                 } else {
@@ -183,7 +204,6 @@ Game.gol = (function () {
         }
 
         _curDrawWorld = (_curDrawWorld + 1) % BUFFERS;
-        _isProcessing = false;
     }
 
     function getNeighbourCount(y, x) {
@@ -211,31 +231,6 @@ Game.gol = (function () {
                 world[y][x] = DEAD;
             }
         }
-    }
-
-    function populateRandom() {
-        emptyWorld(_worlds[_curDrawWorld]);
-        for (let i = 0; i < WIDTH * HEIGHT * 0.3; i++) {
-            _worlds[_curDrawWorld][Math.floor(Math.random() * HEIGHT)][Math.floor(Math.random() * WIDTH)] = ALIVE;
-        }
-
-        step();
-    }
-
-    function populateGliders() {
-        emptyWorld(_worlds[_curDrawWorld]);
-
-        const numGliders = Math.min(3, Math.floor(WIDTH / 5));
-        const bucketSize = Math.floor(WIDTH / numGliders);
-
-        for(let i = 0; i < numGliders; i++) {
-            const x = Math.floor(Math.random() * (bucketSize - 6)) + i * bucketSize;
-            const y = Math.floor(Math.random() * (WIDTH / 2));
-
-            createGlider(x, y);
-        }
-
-        step();
     }
 
     function createGlider(x, y) {
